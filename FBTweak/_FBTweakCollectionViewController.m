@@ -9,11 +9,9 @@
 
 #import "FBTweakCollection.h"
 #import "FBTweakCategory.h"
-#import "FBTweak.h"
 #import "_FBTweakCollectionViewController.h"
 #import "_FBTweakTableViewCell.h"
-#import "_FBTweakDictionaryViewController.h"
-#import "_FBTweakArrayViewController.h"
+#import "_FBTweakEditViewController.h"
 
 @interface _FBTweakCollectionViewController () <UITableViewDelegate, UITableViewDataSource>
 @end
@@ -28,7 +26,10 @@
   if ((self = [super init])) {
     _tweakCategory = category;
     self.title = _tweakCategory.name;
-    [self _reloadData];
+
+    _sortedCollections = [_tweakCategory.tweakCollections sortedArrayUsingComparator:^(FBTweakCollection *a, FBTweakCollection *b) {
+      return [a.name localizedStandardCompare:b.name];
+    }];
   }
   
   return self;
@@ -37,9 +38,7 @@
 - (void)viewDidLoad
 {
   [super viewDidLoad];
-  
-  [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_keyboardFrameChanged:) name:UIKeyboardWillChangeFrameNotification object:nil];
-  
+    
   _tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleGrouped];
   _tableView.delegate = self;
   _tableView.dataSource = self;
@@ -60,15 +59,21 @@
   [super viewWillAppear:animated];
   
   [_tableView deselectRowAtIndexPath:_tableView.indexPathForSelectedRow animated:animated];
-  [self _reloadData];
 }
 
-- (void)_reloadData
+- (void)viewDidAppear:(BOOL)animated
 {
-  _sortedCollections = [_tweakCategory.tweakCollections sortedArrayUsingComparator:^(FBTweakCollection *a, FBTweakCollection *b) {
-    return [a.name localizedStandardCompare:b.name];
-  }];
-  [_tableView reloadData];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(_keyboardFrameChanged:)
+                                                 name:UIKeyboardWillChangeFrameNotification
+                                               object:nil];
+}
+
+- (void)viewDidDisappear:(BOOL)animated
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:UIKeyboardWillChangeFrameNotification
+                                                  object:nil];
 }
 
 - (void)_done
@@ -132,17 +137,28 @@
   return cell;
 }
 
+
+- (NSIndexPath *)tableView:(UITableView *)tableView willSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    _FBTweakTableViewCell *cell = (_FBTweakTableViewCell *)[tableView cellForRowAtIndexPath:indexPath];
+    
+    if ([cell isFBTweakTableViewCellModeString]) {
+        return indexPath;
+    }
+    
+    return nil;
+}
+
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
-  FBTweakCollection *collection = _sortedCollections[indexPath.section];
-  FBTweak *tweak = collection.tweaks[indexPath.row];
-  if ([tweak.possibleValues isKindOfClass:[NSDictionary class]]) {
-    _FBTweakDictionaryViewController *vc = [[_FBTweakDictionaryViewController alloc] initWithTweak:tweak];
-    [self.navigationController pushViewController:vc animated:YES];
-  } else if ([tweak.possibleValues isKindOfClass:[NSArray class]]) {
-    _FBTweakArrayViewController *vc = [[_FBTweakArrayViewController alloc] initWithTweak:tweak];
-    [self.navigationController pushViewController:vc animated:YES];
-  }
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    FBTweakCollection *collection = _sortedCollections[indexPath.section];
+    FBTweak *tweak = collection.tweaks[indexPath.row];
+    
+    _FBTweakEditViewController *tweakEditViewController = [[_FBTweakEditViewController alloc] initWithTweak:tweak];
+
+    [self.navigationController pushViewController:tweakEditViewController animated:YES];
 }
 
 @end
