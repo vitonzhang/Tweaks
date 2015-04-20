@@ -23,6 +23,8 @@
  */
 - (instancetype)initWithReuseIdentifier:(NSString *)reuseIdentifier;
 
+- (BOOL)isFBTweakTableViewCellModeString;
+
 //! @abstract The tweak to show in the cell.
 @property (nonatomic, strong, readwrite) FBTweak *tweak;
 
